@@ -22,8 +22,6 @@ app.use(express.json());
 app.use(cors());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({extended: false}));
-app.use(notFound);
-app.use(handleError)
 
 //routes
 app.get("/", (req, res) => {
@@ -33,6 +31,11 @@ app.get("/", (req, res) => {
 //user routes
 app.use("/api/v1/user", userRouter);
 const PORT = 5000 || process.env.PORT;
+
+
+app.use(notFound);
+app.use(handleError)
+
 
 //listen server
 app.listen(PORT, () => {
