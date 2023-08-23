@@ -249,6 +249,58 @@ const deleteUser = async (req, res) => {
             error: error.message
         })
     }
+};
+
+const blockAUser = async (req, res) => {
+    const { id } = req.params
+    validateMongoDbId(id);
+    try{
+        const block = await userModel.findByIdAndUpdate(
+            id,
+            {is_blocked: true},
+            {new: true}
+        );
+        res.status(200).json({
+            status: 201,
+            success: true,
+            message: "User successfully blocked!"
+        })
+    } catch (error){
+        res.status(500).json({
+            status: false,
+            message: "An error occurred while blocking a user",
+            error: error.message
+        })
+    }
+};
+
+const unBlockAUser = async (req, res) => {
+    try{
+        const { id } = req.params
+        validateMongoDbId(id);
+
+        const unblocked = await userModel.findByIdAndUpdate(
+            id,
+            {is_blocked: false},
+            {new: true}
+            );
+        res.status(200).json({
+            status: 201,
+            success: true,
+            message: "User successfully unblocked!"
+        })
+
+
+
+    } catch (error) {
+        res.status(500).json({
+            status: false,
+            message: "An error occurred while unblocking a user",
+            error: error.message
+        })
+
+    }
+
 }
 
-module.exports = { loginUser, updateUser, register, getAllUser, getUser, deleteUser}
+module.exports = { loginUser, updateUser, register, getAllUser, getUser, deleteUser, blockAUser, unBlockAUser}
