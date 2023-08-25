@@ -4,6 +4,7 @@ const JWT = require("jsonwebtoken");
 const {all} = require("express/lib/application");
 const validateMongoDbId = require("../config/validateMongoDbId");
 const sendEmail = require("./emailController");
+const crypto = require("crypto");
 
 const register = async (req, res) => {
     try {
