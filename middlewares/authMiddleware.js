@@ -1,13 +1,18 @@
-const JWT = require("jsonwebtoken");
+const jwt = require("jsonwebtoken");
 const User = require("../models/userModel")
 
 const requireSignIn = async (req, res, next) => {
     try {
-        req.user = JWT.verify(
-            req.headers.authorization,
-            process.env.JWT_SECRET
-        );
-        next();
+        let token;
+        if(req?.headers?.authorization?.startsWith("Bearer")){
+            token = req?.headers?.authorization?.split(" ")[1];
+        }
+        if(token){
+            const decoded = jwt.verify(token, process.env.JWT_SECRET);
+            req.user = await User.findById(decoded?._id);
+            console.log(req.user);
+            next();
+        }
     } catch(error){
         console.log(error)
         res.status(401).send({
@@ -16,7 +21,7 @@ const requireSignIn = async (req, res, next) => {
             message: "Error Accessing",
         });
     }
-}
+};
 
 const isAdmin = async (req, res, next) => {
     const { email } = req.user;

@@ -1,4 +1,6 @@
-const mongoose = require("mongoose")
+const mongoose = require("mongoose");
+const bcrypt = require("bcrypt");
+const crypto = require("crypto");
 
 let userSchema = new mongoose.Schema({
         first_name: {
@@ -62,6 +64,27 @@ let userSchema = new mongoose.Schema({
         timestamp: true
     }
 );
+
+userSchema.pre("save", async function(next){
+    if(!this.isModified("password")){
+        next();
+    }
+    const salt = await  bcrypt.genSalt(10)
+    this.password = await bcrypt.hash(this.password, salt);
+    next();
+});
+
+userSchema.methods.createPasswordResetToken = async function(){
+   const reset_token = crypto.randomBytes(32).toString("hex");
+   this.password_reset_token = crypto.createHash("sha256").update(reset_token).digest("hex");
+   this.password_reset_expires = Date.now() + 30*60*1000;
+   return reset_token;
+};
+
+
+userSchema.methods.isPasswordMatched = async function(enteredPassword){
+    return await bcrypt.compare(enteredPassword, this.password);
+};
 
 //export
 const userModel = mongoose.model("User", userSchema);

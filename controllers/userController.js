@@ -3,6 +3,7 @@ const {hashPassword, comparePassword} = require("../helper/authHelper");
 const JWT = require("jsonwebtoken");
 const {all} = require("express/lib/application");
 const validateMongoDbId = require("../config/validateMongoDbId");
+const sendEmail = require("./emailController");
 
 const register = async (req, res) => {
     try {
@@ -278,7 +279,6 @@ const unBlockAUser = async (req, res) => {
     try{
         const { id } = req.params
         validateMongoDbId(id);
-
         const unblocked = await userModel.findByIdAndUpdate(
             id,
             {is_blocked: false},
@@ -289,18 +289,104 @@ const unBlockAUser = async (req, res) => {
             success: true,
             message: "User successfully unblocked!"
         })
-
-
-
     } catch (error) {
         res.status(500).json({
             status: false,
             message: "An error occurred while unblocking a user",
             error: error.message
         })
-
     }
-
 }
 
-module.exports = { loginUser, updateUser, register, getAllUser, getUser, deleteUser, blockAUser, unBlockAUser}
+const updatePassword = async (req, res) => {
+  try{
+      const { _id } = req.user;
+      const { password } = req.body;
+      validateMongoDbId(_id);
+      const user = await userModel.findById(_id);
+      if(user && (await user.isPasswordMatched(password))){
+          return res.status(404).json({
+              success: false,
+              message: "Provide a new password instead of old one",
+          })
+      } else {
+          user.password = password;
+          await user.save();
+          res.status(200).json({
+              success: true,
+              message: "Password updated successfully!"
+          });
+      }
+  }  catch (error) {
+      res.status(500).json({
+          status: false,
+          message: "An error occurred while updating password!",
+          error: error.message
+      })
+  }
+};
+
+const forgotPasswordToken = async (req, res) => {
+  try {
+      const { email } = req.body;
+      const user = await userModel.findOne({email: email});
+      if(!user) {
+          throw new Error("User not found!")
+      }
+
+      const token = await user.createPasswordResetToken();
+      await user.save();
+      const resetLink = `http://localhost:5000/api/user/reset-password/${token}`
+      const data = {
+          to: email,
+          text: `Hey ${user.first_name + " " + user.last_name}`,
+          subject: "Forgot password",
+          html: resetLink
+      };
+      sendEmail(data);
+      res.status(200).json(resetLink);
+
+  }  catch (error) {
+      res.status(500).json({
+          status: false,
+          message: "An error occurred while sending forgot password token!",
+          error: error.message
+      })
+  }
+};
+
+const resetPassword = async (req, res) => {
+    try {
+        const { password } = req.body;
+        const { token } = req.params;
+        const hashed_token = crypto.createHash("sha256").update(token).digest("hex");
+        const user = await userModel.findOne({
+            password_reset_token: hashed_token,
+            password_reset_expires: { $gt: Date.now()},
+        });
+
+        if(!user){
+            throw new Error("Token Expired, please try again!")
+        }
+
+        user.password = password;
+        user.password_reset_token = undefined;
+        user.password_reset_expires = undefined;
+        await user.save();
+
+        res.status(200).json({
+            success: true,
+            message: "Password reset successfully!"
+        })
+
+    } catch (error) {
+        res.status(500).json({
+            status: false,
+            message: "An error occurred while reseting password!",
+            error: error.message
+        })
+    }
+};
+
+
+module.exports = { loginUser, updateUser, register, getAllUser, getUser, deleteUser, blockAUser, unBlockAUser, updatePassword, forgotPasswordToken, resetPassword}
